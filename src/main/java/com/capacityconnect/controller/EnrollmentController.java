@@ -71,11 +71,31 @@ public class EnrollmentController {
         return enrollmentService.createEnrollment(request);
     }
 
+    @PostMapping("/me/{courseId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public EnrollmentResponse enrollInCourse(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        User currentUser = currentUserService.getCurrentUser(authentication);
+
+        if (currentUser.getRole() != User.Role.TRAINEE) {
+            throw new IllegalStateException("Only trainees can enroll in courses");
+        }
+
+        EnrollmentRequest request = new EnrollmentRequest();
+        request.setTraineeId(currentUser.getId());
+        request.setCourseId(courseId);
+
+        return enrollmentService.createEnrollment(request);
+    }
+
     @PatchMapping("/{id}/progress")
     public EnrollmentResponse updateProgress(
             @PathVariable Long id,
-            @RequestParam Integer progress) {
-        return enrollmentService.updateProgress(id, progress);
+            @RequestParam Integer progress,
+            Authentication authentication) {
+        return enrollmentService.updateProgress(id, progress, authentication);
     }
 
     @DeleteMapping("/{id}")

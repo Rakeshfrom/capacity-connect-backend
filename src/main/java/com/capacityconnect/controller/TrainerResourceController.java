@@ -4,6 +4,8 @@ import com.capacityconnect.dto.TrainerResourceRequest;
 import com.capacityconnect.dto.TrainerResourceResponse;
 import com.capacityconnect.service.FileStorageService;
 import com.capacityconnect.service.TrainerResourceService;
+import com.capacityconnect.service.EnrollmentAccessService;
+import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -23,6 +25,7 @@ public class TrainerResourceController {
 
     private final TrainerResourceService service;
     private final FileStorageService fileStorageService;
+    private final EnrollmentAccessService enrollmentAccessService;
 
     @GetMapping
     public List<TrainerResourceResponse> getAll() {
@@ -43,6 +46,17 @@ public class TrainerResourceController {
     @GetMapping("/course/{courseId}")
     public List<TrainerResourceResponse> getByCourse(
             @PathVariable Long courseId) {
+        return service.getByCourse(courseId);
+    }
+
+    @GetMapping("/trainee/course/{courseId}")
+    public List<TrainerResourceResponse> getForEnrolledTrainee(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        enrollmentAccessService.requireEnrolledTrainee(
+                courseId, authentication);
+
         return service.getByCourse(courseId);
     }
 

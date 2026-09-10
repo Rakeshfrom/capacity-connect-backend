@@ -3,9 +3,12 @@ package com.capacityconnect.service;
 import com.capacityconnect.dto.EnrollmentRequest;
 import com.capacityconnect.dto.EnrollmentResponse;
 import com.capacityconnect.entity.Enrollment;
+import com.capacityconnect.entity.User;
 import com.capacityconnect.exception.DuplicateResourceException;
 import com.capacityconnect.exception.ResourceNotFoundException;
 import com.capacityconnect.repository.EnrollmentRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,9 +18,13 @@ import java.util.List;
 public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
+    private final CurrentUserService currentUserService;
 
-    public EnrollmentService(EnrollmentRepository enrollmentRepository) {
+    public EnrollmentService(
+            EnrollmentRepository enrollmentRepository,
+            CurrentUserService currentUserService) {
         this.enrollmentRepository = enrollmentRepository;
+        this.currentUserService = currentUserService;
     }
 
     public List<EnrollmentResponse> getAllEnrollments() {
@@ -69,12 +76,28 @@ public class EnrollmentService {
         return toResponse(enrollmentRepository.save(enrollment));
     }
 
-    public EnrollmentResponse updateProgress(Long id, Integer progress) {
+    public EnrollmentResponse updateProgress(
+            Long id,
+            Integer progress,
+            Authentication authentication) {
+
         Enrollment enrollment = findEnrollment(id);
+        User currentUser = currentUserService.getCurrentUser(authentication);
+
+        if (currentUser.getRole() != User.Role.ADMIN
+                && !currentUser.getId().equals(enrollment.getTraineeId())) {
+            throw new AccessDeniedException(
+                    "You do not have access to this enrollment");
+        }
 
         if (progress < 0 || progress > 100) {
             throw new IllegalArgumentException(
                     "Progress must be between 0 and 100");
+        }
+
+        if (progress == 100 && currentUser.getRole() != User.Role.ADMIN) {
+            throw new AccessDeniedException(
+                    "Course completion is determined by assessment results");
         }
 
         enrollment.setProgress(progress);
@@ -84,6 +107,9 @@ public class EnrollmentService {
             enrollment.setCompletedAt(LocalDateTime.now());
         } else if (progress > 0) {
             enrollment.setStatus(Enrollment.Status.IN_PROGRESS);
+            enrollment.setCompletedAt(null);
+        } else {
+            enrollment.setStatus(Enrollment.Status.ENROLLED);
             enrollment.setCompletedAt(null);
         }
 

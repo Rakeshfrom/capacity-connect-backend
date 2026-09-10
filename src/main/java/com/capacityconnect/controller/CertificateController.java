@@ -55,7 +55,24 @@ public class CertificateController {
     @PostMapping("/issue")
     public ResponseEntity<CertificateResponse> issue(
             @RequestParam Long traineeId,
-            @RequestParam Long courseId) {
+            @RequestParam Long courseId,
+            Authentication authentication) {
+
+        User currentUser = currentUserService.getCurrentUser(authentication);
+
+        boolean isAdmin = currentUser.getRole() == User.Role.ADMIN;
+        boolean isOwner = currentUser.getId().equals(traineeId);
+
+        if (!isAdmin && !isOwner) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You cannot issue a certificate for another trainee");
+        }
+
+        if (!isAdmin && currentUser.getRole() != User.Role.TRAINEE) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only trainees can issue their own certificate");
+        }
+
         return ResponseEntity.ok(
                 certificateService.issue(traineeId, courseId)
         );

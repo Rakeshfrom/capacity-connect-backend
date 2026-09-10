@@ -4,6 +4,8 @@ import com.capacityconnect.dto.AssessmentRequest;
 import com.capacityconnect.dto.AssessmentResponse;
 import com.capacityconnect.entity.Assessment;
 import com.capacityconnect.service.AssessmentService;
+import com.capacityconnect.service.EnrollmentAccessService;
+import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +17,13 @@ import java.util.List;
 public class AssessmentController {
 
     private final AssessmentService assessmentService;
+    private final EnrollmentAccessService enrollmentAccessService;
 
-    public AssessmentController(AssessmentService assessmentService) {
+    public AssessmentController(
+            AssessmentService assessmentService,
+            EnrollmentAccessService enrollmentAccessService) {
         this.assessmentService = assessmentService;
+        this.enrollmentAccessService = enrollmentAccessService;
     }
 
     @GetMapping
@@ -33,6 +39,17 @@ public class AssessmentController {
     @GetMapping("/course/{courseId}")
     public List<AssessmentResponse> getByCourse(
             @PathVariable Long courseId) {
+        return assessmentService.getByCourse(courseId);
+    }
+
+    @GetMapping("/trainee/course/{courseId}")
+    public List<AssessmentResponse> getForEnrolledTrainee(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        enrollmentAccessService.requireEnrolledTrainee(
+                courseId, authentication);
+
         return assessmentService.getByCourse(courseId);
     }
 

@@ -75,14 +75,16 @@ public class AssessmentAttemptController {
     @PatchMapping("/{id}/submit")
     public AssessmentAttemptResponse submitAttempt(
             @PathVariable Long id,
-            @Valid @RequestBody AssessmentSubmissionRequest request) {
-        return attemptService.submitAttempt(id, request);
+            @Valid @RequestBody AssessmentSubmissionRequest request,
+            Authentication authentication) {
+        return attemptService.submitAttempt(id, request, authentication);
     }
 
     @PatchMapping("/{id}/terminate")
     public AssessmentAttemptResponse terminateAttempt(
-            @PathVariable Long id) {
-        attemptService.terminateAttempt(id);
+            @PathVariable Long id,
+            Authentication authentication) {
+        attemptService.terminateAttempt(id, authentication);
         return attemptService.getAttemptById(id);
     }
 

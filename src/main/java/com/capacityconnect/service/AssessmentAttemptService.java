@@ -12,6 +12,7 @@ import com.capacityconnect.repository.QuestionRepository;
 import com.capacityconnect.repository.AssessmentRepository;
 import com.capacityconnect.repository.EnrollmentRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,16 +24,22 @@ public class AssessmentAttemptService {
     private final QuestionRepository questionRepository;
     private final AssessmentRepository assessmentRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final CurrentUserService currentUserService;
+    private final EnrollmentService enrollmentService;
 
     public AssessmentAttemptService(
             AssessmentAttemptRepository attemptRepository,
             QuestionRepository questionRepository,
             AssessmentRepository assessmentRepository,
-            EnrollmentRepository enrollmentRepository) {
+            EnrollmentRepository enrollmentRepository,
+            CurrentUserService currentUserService,
+            EnrollmentService enrollmentService) {
         this.attemptRepository = attemptRepository;
         this.questionRepository = questionRepository;
         this.assessmentRepository = assessmentRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.currentUserService = currentUserService;
+        this.enrollmentService = enrollmentService;
     }
 
     public List<AssessmentAttemptResponse> getAllAttempts() {
@@ -121,9 +128,11 @@ public class AssessmentAttemptService {
 
     public AssessmentAttemptResponse submitAttempt(
             Long id,
-            AssessmentSubmissionRequest request) {
+            AssessmentSubmissionRequest request,
+            Authentication authentication) {
 
         AssessmentAttempt attempt = findAttempt(id);
+        requireAttemptAccess(attempt, authentication);
 
         if (attempt.getResult() != AssessmentAttempt.Result.PENDING) {
             throw new IllegalArgumentException(
@@ -194,11 +203,25 @@ public class AssessmentAttemptService {
         );
         attempt.setSubmittedAt(LocalDateTime.now());
 
-        return toResponse(attemptRepository.save(attempt));
+        AssessmentAttempt savedAttempt = attemptRepository.save(attempt);
+
+        if (savedAttempt.getResult() == AssessmentAttempt.Result.PASSED) {
+            completeCourseIfAllAssessmentsPassed(
+                    savedAttempt.getTraineeId(),
+                    assessment.getCourseId(),
+                    authentication
+            );
+        }
+
+        return toResponse(savedAttempt);
     }
 
-    public void terminateAttempt(Long id) {
+    public void terminateAttempt(
+            Long id,
+            Authentication authentication) {
+
         AssessmentAttempt attempt = findAttempt(id);
+        requireAttemptAccess(attempt, authentication);
 
         if (attempt.getResult() != AssessmentAttempt.Result.PENDING) {
             throw new IllegalArgumentException(
@@ -213,6 +236,78 @@ public class AssessmentAttemptService {
     public void deleteAttempt(Long id) {
         AssessmentAttempt attempt = findAttempt(id);
         attemptRepository.delete(attempt);
+    }
+
+    private void completeCourseIfAllAssessmentsPassed(
+            Long traineeId,
+            Long courseId,
+            Authentication authentication) {
+
+        var enrollment = enrollmentRepository
+                .findByTraineeIdAndCourseId(traineeId, courseId)
+                .orElse(null);
+
+        if (enrollment == null) {
+            return;
+        }
+
+        List<Assessment> assessments = assessmentRepository.findAll()
+                .stream()
+                .filter(item -> courseId.equals(item.getCourseId()))
+                .filter(item -> item.getStatus() == Assessment.Status.PUBLISHED)
+                .toList();
+
+        if (assessments.isEmpty()) {
+            return;
+        }
+
+        boolean allPassed = assessments.stream().allMatch(item ->
+                attemptRepository.findByAssessmentIdAndTraineeId(
+                        item.getId(),
+                        traineeId
+                )
+                .stream()
+                .anyMatch(attempt ->
+                        attempt.getResult() == AssessmentAttempt.Result.PASSED)
+        );
+
+        if (allPassed && enrollment.getProgress() < 100) {
+            enrollmentService.updateProgress(enrollment.getId(), 100, authentication);
+        }
+    }
+
+    private void requireAttemptAccess(
+            AssessmentAttempt attempt,
+            Authentication authentication) {
+
+        var currentUser = currentUserService.getCurrentUser(authentication);
+
+        if (currentUser.getRole() != com.capacityconnect.entity.User.Role.TRAINEE) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only trainees can access assessment attempts");
+        }
+
+        if (!currentUser.getId().equals(attempt.getTraineeId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You do not have access to this assessment attempt");
+        }
+
+        Assessment assessment = assessmentRepository.findById(attempt.getAssessmentId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Assessment not found with id: " + attempt.getAssessmentId()));
+
+        var enrollment = enrollmentRepository
+                .findByTraineeIdAndCourseId(
+                        currentUser.getId(),
+                        assessment.getCourseId())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Trainee is not enrolled in this course"));
+
+        if (enrollment.getStatus() == com.capacityconnect.entity.Enrollment.Status.DROPPED) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Course access is unavailable for this enrollment");
+        }
     }
 
     private AssessmentAttempt findAttempt(Long id) {
