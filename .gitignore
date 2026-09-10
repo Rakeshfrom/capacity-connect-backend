@@ -1,43 +1,40 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
+!**/src/main/**/build/
+!**/src/main/**/target/
+!**/src/test/**/build/
+!**/src/test/**/target/
+!.env.example
+# Runtime/generated files
+### IntelliJ IDEA ###
+### NetBeans ###
 ### STS ###
+### VS Code ###
+*.env
+*.iml
+*.ipr
+*.iws
 .apt_generated
 .classpath
+.env
+.env.*
 .factorypath
+.idea
+.mvn/wrapper/maven-wrapper.jar
 .project
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
 .vscode/
-
-.env
-.env.*
-!.env.example
-
-# Runtime/generated files
+/.nb-gradle/
+/dist/
+/nbbuild/
+/nbdist/
+/nbproject/private/
+HELP.md
+build/
+capacity_connect_backup.sql
 certificate-*.pdf
 downloaded-resource.txt
+target/
 test-resource.txt
 uploads/
