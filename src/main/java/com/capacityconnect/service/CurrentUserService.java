@@ -27,11 +27,36 @@ public class CurrentUserService {
         }
 
         return userRepository.findByKeycloakId(keycloakId)
-                .orElseGet(() -> createNewUser(jwt, keycloakId));
+                .orElseGet(() -> findExistingUserOrCreate(jwt, keycloakId));
     }
 
     public User save(User user) {
         return userRepository.save(user);
+    }
+
+    private User findExistingUserOrCreate(Jwt jwt, String keycloakId) {
+        String username = jwt.getClaimAsString("preferred_username");
+        String email = jwt.getClaimAsString("email");
+
+        if (username != null && !username.isBlank()) {
+            var existingByUsername = userRepository.findByUsername(username);
+            if (existingByUsername.isPresent()) {
+                User user = existingByUsername.get();
+                user.setKeycloakId(keycloakId);
+                return userRepository.save(user);
+            }
+        }
+
+        if (email != null && !email.isBlank()) {
+            var existingByEmail = userRepository.findByEmail(email);
+            if (existingByEmail.isPresent()) {
+                User user = existingByEmail.get();
+                user.setKeycloakId(keycloakId);
+                return userRepository.save(user);
+            }
+        }
+
+        return createNewUser(jwt, keycloakId);
     }
 
     private User createNewUser(Jwt jwt, String keycloakId) {
