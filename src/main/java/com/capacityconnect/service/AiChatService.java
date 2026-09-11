@@ -13,7 +13,7 @@ import java.util.List;
 public class AiChatService {
 
     private final RestClient restClient;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${ollama.url:http://localhost:11434/api/generate}")
     private String ollamaUrl;
@@ -21,8 +21,7 @@ public class AiChatService {
     @Value("${ollama.model:qwen3:4b}")
     private String ollamaModel;
 
-    public AiChatService(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public AiChatService() {
         this.restClient = RestClient.create();
     }
 
