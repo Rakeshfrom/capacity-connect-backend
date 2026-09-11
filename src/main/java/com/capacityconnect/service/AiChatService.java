@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AiChatService {
@@ -15,11 +16,14 @@ public class AiChatService {
     private final RestClient restClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${ollama.url:http://localhost:11434/api/generate}")
-    private String ollamaUrl;
+    @Value("${DASHSCOPE_API_KEY:}")
+    private String apiKey;
 
-    @Value("${ollama.model:qwen3:4b}")
-    private String ollamaModel;
+    @Value("${DASHSCOPE_BASE_URL:https://dashscope-intl.aliyuncs.com/compatible-mode/v1}")
+    private String baseUrl;
+
+    @Value("${DASHSCOPE_MODEL:qwen3.7-plus}")
+    private String model;
 
     public AiChatService() {
         this.restClient = RestClient.create();
@@ -29,67 +33,73 @@ public class AiChatService {
         String prompt = """
                 You are Capacity AI, an educational LMS assistant.
 
-                Answer the user's question clearly and helpfully.
+                Answer the user's question clearly and accurately.
 
                 After the answer, generate exactly 4 short, natural follow-up questions
-                that are directly related to the user's question and your answer.
-                These must be useful clickable queries for continuing the conversation.
+                that are directly related to the user's current question.
 
-                Return ONLY valid JSON:
+                Return ONLY valid JSON in this exact structure:
                 {
                   "answer": "your answer",
                   "quickQueries": [
-                    "follow-up question 1",
-                    "follow-up question 2",
-                    "follow-up question 3",
-                    "follow-up question 4"
+                    "question 1",
+                    "question 2",
+                    "question 3",
+                    "question 4"
                   ]
                 }
 
                 User question:
-                %s
-                """.formatted(message);
-
-        String body = """
-                {
-                  "model": "%s",
-                  "prompt": %s,
-                  "stream": false,
-                  "format": "json"
-                }
-                """.formatted(ollamaModel, quote(prompt));
-
-        String raw = restClient.post()
-                .uri(ollamaUrl)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .retrieve()
-                .body(String.class);
+                """ + message;
 
         try {
-            JsonNode root = objectMapper.readTree(raw);
-            String response = root.path("response").asText();
-            JsonNode result = objectMapper.readTree(response);
+            Map<String, Object> body = Map.of(
+                    "model", model,
+                    "messages", List.of(
+                            Map.of(
+                                    "role", "system",
+                                    "content", "You are Capacity AI, a helpful educational LMS assistant."
+                            ),
+                            Map.of(
+                                    "role", "user",
+                                    "content", prompt
+                            )
+                    ),
+                    "stream", false,
+                    "extra_body", Map.of("enable_thinking", false)
+            );
 
+            String raw = restClient.post()
+                    .uri(baseUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode root = objectMapper.readTree(raw);
+            String content = root.path("choices")
+                    .path(0)
+                    .path("message")
+                    .path("content")
+                    .asText();
+
+            content = content.replace("```json", "")
+                    .replace("```", "")
+                    .trim();
+
+            JsonNode result = objectMapper.readTree(content);
+
+            String answer = result.path("answer").asText();
             List<String> quickQueries = objectMapper.convertValue(
                     result.path("quickQueries"),
                     objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
             );
 
-            return new AiChatResponse(
-                    result.path("answer").asText(),
-                    quickQueries
-            );
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse AI response", e);
-        }
-    }
+            return new AiChatResponse(answer, quickQueries);
 
-    private String quote(String value) {
-        try {
-            return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("QwenCloud AI request failed", e);
         }
     }
 }
