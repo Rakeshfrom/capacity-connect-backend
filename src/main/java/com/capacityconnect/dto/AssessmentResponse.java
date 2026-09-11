@@ -14,6 +14,7 @@ public class AssessmentResponse {
     private String title;
     private String description;
     private Long courseId;
+    private Long moduleId;
     private Integer timeLimitMinutes;
     private Integer passingPercentage;
     private Assessment.Status status;

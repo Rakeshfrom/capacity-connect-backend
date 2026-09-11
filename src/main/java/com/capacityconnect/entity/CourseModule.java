@@ -6,17 +6,20 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "courses")
+@Table(name = "course_modules")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Course {
+public class CourseModule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "course_id", nullable = false)
+    private Long courseId;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -24,46 +27,17 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 100)
-    private String category;
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex = 0;
 
-    @Column(name = "duration_hours")
-    private Integer durationHours;
-
-    @Column(length = 150)
-    private String department;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Level level;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Status status = Status.DRAFT;
-
-    @Column(name = "trainer_id")
-    private Long trainerId;
-
-    @Column(name = "department_id")
-    private Long departmentId;
+    @Column(nullable = false)
+    private Boolean active = true;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    public enum Level {
-        BEGINNER,
-        INTERMEDIATE,
-        ADVANCED
-    }
-
-    public enum Status {
-        DRAFT,
-        PUBLISHED,
-        ARCHIVED
-    }
 
     @PrePersist
     protected void onCreate() {

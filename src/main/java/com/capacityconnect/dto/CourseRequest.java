@@ -24,6 +24,9 @@ public class CourseRequest {
     @Min(1)
     private Integer durationHours;
 
+    @Size(max = 150)
+    private String department;
+
     @NotNull
     private Course.Level level;
 
@@ -31,4 +34,7 @@ public class CourseRequest {
     private Course.Status status;
 
     private Long trainerId;
+
+    @NotNull
+    private Long departmentId;
 }

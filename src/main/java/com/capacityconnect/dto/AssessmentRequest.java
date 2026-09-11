@@ -23,6 +23,9 @@ public class AssessmentRequest {
     @Min(1)
     private Long courseId;
 
+    @Min(1)
+    private Long moduleId;
+
     @NotNull
     @Min(1)
     private Integer timeLimitMinutes;

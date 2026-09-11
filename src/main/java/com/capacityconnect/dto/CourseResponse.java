@@ -15,9 +15,11 @@ public class CourseResponse {
     private String description;
     private String category;
     private Integer durationHours;
+    private String department;
     private Course.Level level;
     private Course.Status status;
     private Long trainerId;
+    private Long departmentId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

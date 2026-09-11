@@ -27,6 +27,9 @@ public class Assessment {
     @Column(name = "course_id", nullable = false)
     private Long courseId;
 
+    @Column(name = "module_id")
+    private Long moduleId;
+
     @Column(name = "time_limit_minutes")
     private Integer timeLimitMinutes;
 

@@ -43,6 +43,7 @@ public class TrainerResourceService {
         TrainerResource resource = TrainerResource.builder()
                 .trainerId(request.getTrainerId())
                 .courseId(request.getCourseId())
+                .moduleId(request.getModuleId())
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .resourceType(parseType(request.getResourceType()))
@@ -61,6 +62,7 @@ public class TrainerResourceService {
                 .orElseThrow(() -> new IllegalArgumentException("Resource not found"));
 
         resource.setCourseId(request.getCourseId());
+        resource.setModuleId(request.getModuleId());
         resource.setTitle(request.getTitle());
         resource.setDescription(request.getDescription());
         resource.setResourceType(parseType(request.getResourceType()));
@@ -93,6 +95,7 @@ public class TrainerResourceService {
                 .id(resource.getId())
                 .trainerId(resource.getTrainerId())
                 .courseId(resource.getCourseId())
+                .moduleId(resource.getModuleId())
                 .title(resource.getTitle())
                 .description(resource.getDescription())
                 .resourceType(resource.getResourceType().name())

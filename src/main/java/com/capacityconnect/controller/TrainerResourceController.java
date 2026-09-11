@@ -70,6 +70,7 @@ public class TrainerResourceController {
     public TrainerResourceResponse upload(
             @RequestParam Long trainerId,
             @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) Long moduleId,
             @RequestParam String title,
             @RequestParam(required = false) String description,
             @RequestParam String resourceType,
@@ -80,6 +81,7 @@ public class TrainerResourceController {
         TrainerResourceRequest request = new TrainerResourceRequest();
         request.setTrainerId(trainerId);
         request.setCourseId(courseId);
+        request.setModuleId(moduleId);
         request.setTitle(title);
         request.setDescription(description);
         request.setResourceType(resourceType);

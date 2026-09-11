@@ -71,9 +71,11 @@ public class CourseService {
                 .description(request.getDescription())
                 .category(request.getCategory())
                 .durationHours(request.getDurationHours())
+                .department(request.getDepartment())
                 .level(request.getLevel())
                 .status(request.getStatus())
                 .trainerId(currentUser.getId())
+                .departmentId(request.getDepartmentId())
                 .build();
 
         Course savedCourse = courseRepository.save(course);
@@ -119,8 +121,10 @@ public class CourseService {
         course.setDescription(request.getDescription());
         course.setCategory(request.getCategory());
         course.setDurationHours(request.getDurationHours());
+        course.setDepartment(request.getDepartment());
         course.setLevel(request.getLevel());
         course.setStatus(request.getStatus());
+        course.setDepartmentId(request.getDepartmentId());
 
         if (currentUser.getRole() == com.capacityconnect.entity.User.Role.ADMIN) {
             course.setTrainerId(request.getTrainerId());
@@ -189,9 +193,11 @@ public class CourseService {
                 .description(course.getDescription())
                 .category(course.getCategory())
                 .durationHours(course.getDurationHours())
+                .department(course.getDepartment())
                 .level(course.getLevel())
                 .status(course.getStatus())
                 .trainerId(course.getTrainerId())
+                .departmentId(course.getDepartmentId())
                 .createdAt(course.getCreatedAt())
                 .updatedAt(course.getUpdatedAt())
                 .build();

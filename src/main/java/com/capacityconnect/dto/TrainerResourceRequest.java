@@ -14,6 +14,8 @@ public class TrainerResourceRequest {
 
     private Long courseId;
 
+    private Long moduleId;
+
     @NotBlank
     private String title;
 

@@ -12,6 +12,8 @@ public class TrainerResourceResponse {
     private Long id;
     private Long trainerId;
     private Long courseId;
+
+    private Long moduleId;
     private String title;
     private String description;
     private String resourceType;

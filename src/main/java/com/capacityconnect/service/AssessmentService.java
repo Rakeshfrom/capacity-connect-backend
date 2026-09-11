@@ -60,6 +60,7 @@ public class AssessmentService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .courseId(request.getCourseId())
+                .moduleId(request.getModuleId())
                 .timeLimitMinutes(request.getTimeLimitMinutes())
                 .passingPercentage(request.getPassingPercentage())
                 .status(request.getStatus())
@@ -100,6 +101,7 @@ public class AssessmentService {
         assessment.setTitle(request.getTitle());
         assessment.setDescription(request.getDescription());
         assessment.setCourseId(request.getCourseId());
+        assessment.setModuleId(request.getModuleId());
         assessment.setTimeLimitMinutes(request.getTimeLimitMinutes());
         assessment.setPassingPercentage(request.getPassingPercentage());
         assessment.setStatus(request.getStatus());
@@ -147,6 +149,7 @@ public class AssessmentService {
                 .title(assessment.getTitle())
                 .description(assessment.getDescription())
                 .courseId(assessment.getCourseId())
+                .moduleId(assessment.getModuleId())
                 .timeLimitMinutes(assessment.getTimeLimitMinutes())
                 .passingPercentage(assessment.getPassingPercentage())
                 .status(assessment.getStatus())

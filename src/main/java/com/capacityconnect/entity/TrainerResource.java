@@ -24,6 +24,9 @@ public class TrainerResource {
     @Column(name = "course_id")
     private Long courseId;
 
+    @Column(name = "module_id")
+    private Long moduleId;
+
     @Column(nullable = false)
     private String title;
 
