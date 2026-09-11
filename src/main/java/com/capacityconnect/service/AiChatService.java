@@ -30,6 +30,14 @@ public class AiChatService {
     }
 
     public AiChatResponse chat(String message) {
+        return chat(message, "");
+    }
+
+    public AiChatResponse chat(String message, String resourceText) {
+        String context = resourceText == null || resourceText.isBlank()
+                ? ""
+                : "\n\nRESOURCE CONTENT:\n" + resourceText.substring(0, Math.min(resourceText.length(), 30000));
+
         String prompt = """
                 You are Capacity AI, an educational LMS assistant.
 
@@ -49,8 +57,11 @@ public class AiChatService {
                   ]
                 }
 
+                If resource content is provided, use it as the primary source for
+                answering questions about that resource.
+
                 User question:
-                """ + message;
+                """ + message + context;
 
         try {
             Map<String, Object> body = Map.of(
