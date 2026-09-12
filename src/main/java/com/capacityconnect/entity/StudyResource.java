@@ -44,6 +44,10 @@ public class StudyResource {
     @Column(name = "content_type", length = 150)
     private String contentType;
 
+    @Lob
+    @Column(name = "content_text", columnDefinition = "TEXT")
+    private String contentText;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

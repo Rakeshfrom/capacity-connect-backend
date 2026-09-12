@@ -4,6 +4,8 @@ import com.capacityconnect.dto.AiChatRequest;
 import com.capacityconnect.dto.AiChatResponse;
 import com.capacityconnect.service.AiChatService;
 import com.capacityconnect.service.AiResourceService;
+import com.capacityconnect.service.StudyResourceService;
+import com.capacityconnect.entity.StudyResource;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
@@ -17,13 +19,16 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
     private final AiResourceService aiResourceService;
+    private final StudyResourceService studyResourceService;
 
     public AiChatController(
             AiChatService aiChatService,
-            AiResourceService aiResourceService
+            AiResourceService aiResourceService,
+            StudyResourceService studyResourceService
     ) {
         this.aiChatService = aiChatService;
         this.aiResourceService = aiResourceService;
+        this.studyResourceService = studyResourceService;
     }
 
 
@@ -51,6 +56,26 @@ public class AiChatController {
             @RequestParam("url") String url
     ) throws Exception {
         String resourceText = aiResourceService.extractTextFromUrl(url);
+        return aiChatService.chat(message, resourceText);
+    }
+
+    @PostMapping("/chat/resource-id")
+    @PreAuthorize("isAuthenticated()")
+    public AiChatResponse chatWithStoredResource(
+            @RequestParam("message") String message,
+            @RequestParam("resourceId") Long resourceId,
+            org.springframework.security.core.Authentication authentication
+    ) {
+        StudyResource resource = studyResourceService.getMineById(resourceId, authentication);
+
+        String resourceText = resource.getContentText();
+
+        if (resourceText == null || resourceText.isBlank()) {
+            resourceText = resource.getDescription() == null
+                    ? ""
+                    : resource.getDescription();
+        }
+
         return aiChatService.chat(message, resourceText);
     }
 

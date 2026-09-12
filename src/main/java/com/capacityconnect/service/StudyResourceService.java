@@ -19,6 +19,7 @@ public class StudyResourceService {
 
     private final StudyResourceRepository repository;
     private final CurrentUserService currentUserService;
+    private final AiResourceService aiResourceService;
 
     @Value("${trainee-storage.location:uploads/trainee-resources}")
     private String storageLocation;
@@ -28,9 +29,11 @@ public class StudyResourceService {
 
     public StudyResourceService(
             StudyResourceRepository repository,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            AiResourceService aiResourceService) {
         this.repository = repository;
         this.currentUserService = currentUserService;
+        this.aiResourceService = aiResourceService;
     }
 
     public List<StudyResourceResponse> getMine(
@@ -76,6 +79,12 @@ public class StudyResourceService {
                 StandardCopyOption.REPLACE_EXISTING
         );
 
+        String contentText = null;
+        try {
+            contentText = aiResourceService.extractText(file);
+        } catch (Exception ignored) {
+        }
+
         StudyResource resource = StudyResource.builder()
                 .title(title)
                 .description(description)
@@ -84,6 +93,7 @@ public class StudyResourceService {
                 .storedFileName(stored)
                 .originalFileName(original)
                 .contentType(file.getContentType())
+                .contentText(contentText)
                 .build();
 
         return toResponse(repository.save(resource));
@@ -101,12 +111,19 @@ public class StudyResourceService {
 
         User user = currentUserService.getCurrentUser(authentication);
 
+        String contentText = null;
+        try {
+            contentText = aiResourceService.extractTextFromUrl(url);
+        } catch (Exception ignored) {
+        }
+
         StudyResource resource = StudyResource.builder()
                 .title(title)
                 .description(description)
                 .type(StudyResource.Type.LINK)
                 .ownerId(user.getId())
                 .url(url)
+                .contentText(contentText)
                 .build();
 
         return toResponse(repository.save(resource));
