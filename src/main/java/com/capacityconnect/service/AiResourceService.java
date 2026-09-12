@@ -149,13 +149,30 @@ public class AiResourceService {
 
         JsonNode root = objectMapper.readTree(raw);
 
-        String result = root.path("choices")
+        JsonNode responseContent = root.path("choices")
                 .path(0)
                 .path("message")
-                .path("content")
-                .asText();
+                .path("content");
 
-        if (result == null || result.isBlank()) {
+        String result;
+
+        if (responseContent.isTextual()) {
+            result = responseContent.asText();
+        } else if (responseContent.isArray()) {
+            StringBuilder extracted = new StringBuilder();
+
+            for (JsonNode item : responseContent) {
+                if (item.has("text")) {
+                    extracted.append(item.path("text").asText());
+                }
+            }
+
+            result = extracted.toString();
+        } else {
+            result = "";
+        }
+
+        if (result.isBlank()) {
             throw new IllegalArgumentException(
                     "OCR returned empty content"
             );
