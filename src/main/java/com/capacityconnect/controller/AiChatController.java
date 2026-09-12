@@ -36,12 +36,11 @@ public class AiChatController {
     @PostMapping("/chat")
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chat(
-            @Valid @RequestBody AiChatRequest request,
-            @RequestParam(value = "resourceText", required = false) String resourceText
+            @Valid @RequestBody AiChatRequest request
     ) {
         return aiChatService.chat(
                 request.message(),
-                resourceText == null ? "" : resourceText
+                request.resourceText() == null ? "" : request.resourceText()
         );
     }
 }
