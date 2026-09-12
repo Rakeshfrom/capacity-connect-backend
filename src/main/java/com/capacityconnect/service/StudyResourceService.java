@@ -50,6 +50,7 @@ public class StudyResourceService {
     public StudyResourceResponse createFile(
             String title,
             String description,
+            String department,
             MultipartFile file,
             org.springframework.security.core.Authentication authentication)
             throws IOException {
@@ -88,6 +89,7 @@ public class StudyResourceService {
         StudyResource resource = StudyResource.builder()
                 .title(title)
                 .description(description)
+                .department(department)
                 .type(StudyResource.Type.FILE)
                 .ownerId(user.getId())
                 .storedFileName(stored)
@@ -102,6 +104,7 @@ public class StudyResourceService {
     public StudyResourceResponse createLink(
             String title,
             String description,
+            String department,
             String url,
             org.springframework.security.core.Authentication authentication) {
 
@@ -120,6 +123,7 @@ public class StudyResourceService {
         StudyResource resource = StudyResource.builder()
                 .title(title)
                 .description(description)
+                .department(department)
                 .type(StudyResource.Type.LINK)
                 .ownerId(user.getId())
                 .url(url)

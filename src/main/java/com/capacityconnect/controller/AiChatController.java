@@ -59,7 +59,7 @@ public class AiChatController {
         return aiChatService.chat(message, resourceText);
     }
 
-    @PostMapping("/chat/resource-id")
+    @PostMapping(value = "/chat/resource-id", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chatWithStoredResource(
             @RequestParam("message") String message,

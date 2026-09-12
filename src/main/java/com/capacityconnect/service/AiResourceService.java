@@ -132,7 +132,23 @@ public class AiResourceService {
             }
         }
 
-        throw new IllegalArgumentException("Stored AI resource currently supports PDF files");
+        if (name.endsWith(".png")
+                || name.endsWith(".jpg")
+                || name.endsWith(".jpeg")
+                || name.endsWith(".webp")) {
+
+            BufferedImage image = ImageIO.read(new java.io.ByteArrayInputStream(bytes));
+
+            if (image == null) {
+                throw new IllegalArgumentException("Invalid image resource");
+            }
+
+            return limit(extractImageWithOCR(image));
+        }
+
+        throw new IllegalArgumentException(
+                "Stored AI resource currently supports PDF and image files"
+        );
     }
 
     public String extractTextFromUrl(String url) throws Exception {

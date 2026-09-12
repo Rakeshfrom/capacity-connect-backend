@@ -56,10 +56,11 @@ public class StudyResourceController {
     public StudyResourceResponse upload(
             @RequestParam String title,
             @RequestParam(required = false, defaultValue = "") String description,
+            @RequestParam(required = false, defaultValue = "") String department,
             @RequestParam MultipartFile file,
             Authentication authentication) throws Exception {
 
-        return service.createFile(title, description, file, authentication);
+        return service.createFile(title, description, department, file, authentication);
     }
 
     @PostMapping("/link")
@@ -70,6 +71,7 @@ public class StudyResourceController {
         return service.createLink(
                 request.title(),
                 request.description(),
+                request.department(),
                 request.url(),
                 authentication
         );
@@ -110,6 +112,7 @@ public class StudyResourceController {
     public record LinkRequest(
             String title,
             String description,
+            String department,
             String url
     ) {}
 }
