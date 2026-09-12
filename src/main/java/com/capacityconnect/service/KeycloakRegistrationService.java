@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.util.LinkedMultiValueMap;
 
 @Service
 public class KeycloakRegistrationService {
@@ -67,8 +68,18 @@ public class KeycloakRegistrationService {
             if (e.getStatusCode().value() == 409) {
                 throw new IllegalArgumentException("An account with this email already exists");
             }
+            System.err.println("Keycloak user creation failed: "
+                    + e.getStatusCode() + " " + e.getResponseBodyAsString());
             throw new IllegalArgumentException("Unable to create account");
         }
+    }
+
+    private LinkedMultiValueMap<String, String> adminTokenForm() {
+        var form = new LinkedMultiValueMap<String, String>();
+        form.add("grant_type", "client_credentials");
+        form.add("client_id", adminClientId);
+        form.add("client_secret", adminClientSecret);
+        return form;
     }
 
     private String getAdminToken() {
@@ -76,14 +87,14 @@ public class KeycloakRegistrationService {
             Map<?, ?> response = restClient.post()
                     .uri(keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token")
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body("grant_type=client_credentials"
-                            + "&client_id=" + adminClientId
-                            + "&client_secret=" + adminClientSecret)
+                    .body(adminTokenForm())
                     .retrieve()
                     .body(Map.class);
 
             return (String) response.get("access_token");
         } catch (RestClientResponseException e) {
+            System.err.println("Keycloak admin authentication failed: "
+                    + e.getStatusCode() + " " + e.getResponseBodyAsString());
             throw new IllegalStateException("Keycloak admin authentication failed");
         }
     }
