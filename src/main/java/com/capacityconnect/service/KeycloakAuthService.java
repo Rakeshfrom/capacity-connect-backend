@@ -49,6 +49,8 @@ public class KeycloakAuthService {
                     (String) response.get("session_state")
             );
         } catch (RestClientResponseException e) {
+            System.err.println("Keycloak login failed: status=" + e.getStatusCode()
+                    + ", body=" + e.getResponseBodyAsString());
             throw new IllegalArgumentException("Invalid username or password");
         }
     }
