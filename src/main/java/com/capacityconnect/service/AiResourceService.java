@@ -22,7 +22,8 @@ public class AiResourceService {
         }
 
         try (var document = Loader.loadPDF(file.getBytes())) {
-            return new PDFTextStripper().getText(document);
+            String text = new PDFTextStripper().getText(document);
+            return text.length() > 30000 ? text.substring(0, 30000) : text;
         }
     }
 }
