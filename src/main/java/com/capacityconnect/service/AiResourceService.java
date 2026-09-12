@@ -8,12 +8,12 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +29,6 @@ public class AiResourceService {
 
     @Value("${DASHSCOPE_BASE_URL:https://dashscope-intl.aliyuncs.com/compatible-mode/v1}")
     private String baseUrl;
-
-    @Value("${DASHSCOPE_MODEL:qwen3.7-plus}")
-    private String model;
 
     public String extractText(MultipartFile file) throws Exception {
         if (file == null || file.isEmpty()) {
@@ -53,7 +50,9 @@ public class AiResourceService {
             return extractImage(file);
         }
 
-        throw new IllegalArgumentException("Supported resources: PDF, PNG, JPG, JPEG, WEBP");
+        throw new IllegalArgumentException(
+                "Supported resources: PDF, PNG, JPG, JPEG, WEBP"
+        );
     }
 
     private String extractPdf(MultipartFile file) throws Exception {
@@ -66,72 +65,78 @@ public class AiResourceService {
             }
 
             PDFRenderer renderer = new PDFRenderer(document);
-            List<String> images = new ArrayList<>();
+            StringBuilder result = new StringBuilder();
 
-            int pages = Math.min(document.getNumberOfPages(), 8);
+            int pages = Math.min(document.getNumberOfPages(), 20);
 
             for (int i = 0; i < pages; i++) {
-                var image = renderer.renderImageWithDPI(i, 120);
+                BufferedImage image = renderer.renderImageWithDPI(i, 90);
 
-                ByteArrayOutputStream output = new ByteArrayOutputStream();
-                ImageIO.write(image, "png", output);
+                String pageText = extractImageWithOCR(image);
 
-                String base64 = Base64.getEncoder().encodeToString(output.toByteArray());
-                images.add("data:image/png;base64," + base64);
+                if (pageText != null && !pageText.isBlank()) {
+                    result.append("\n\n--- Page ")
+                          .append(i + 1)
+                          .append(" ---\n\n")
+                          .append(pageText);
+                }
             }
 
-            if (images.isEmpty()) {
-                throw new IllegalArgumentException("Could not read PDF content");
+            if (result.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Could not extract readable content from PDF"
+                );
             }
 
-            return extractFromImages(images);
+            return limit(result.toString());
         }
     }
 
     private String extractImage(MultipartFile file) throws Exception {
-        String mime = file.getContentType();
+        BufferedImage image = ImageIO.read(file.getInputStream());
 
-        if (mime == null || !mime.startsWith("image/")) {
-            mime = "image/jpeg";
+        if (image == null) {
+            throw new IllegalArgumentException("Invalid image resource");
         }
 
-        String base64 = Base64.getEncoder().encodeToString(file.getBytes());
-
-        return extractFromImages(
-                List.of("data:" + mime + ";base64," + base64)
-        );
+        return limit(extractImageWithOCR(image));
     }
 
-    private String extractFromImages(List<String> images) throws Exception {
-        List<Map<String, Object>> content = new ArrayList<>();
+    private String extractImageWithOCR(BufferedImage image) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        for (String image : images) {
-            content.add(Map.of(
-                    "type", "image_url",
-                    "image_url", Map.of("url", image)
-            ));
-        }
+        ImageIO.write(image, "jpg", output);
 
-        content.add(Map.of(
-                "type", "text",
-                "text", """
-                        Extract all readable text from these document pages.
-                        Preserve headings, paragraphs, lists and important values.
-                        Return only the extracted text.
-                        Do not summarize.
-                        """
-        ));
+        String base64 = Base64.getEncoder()
+                .encodeToString(output.toByteArray());
+
+        Map<String, Object> content = Map.of(
+                "type", "image_url",
+                "image_url", Map.of(
+                        "url", "data:image/jpeg;base64," + base64
+                )
+        );
 
         Map<String, Object> body = Map.of(
-                "model", model,
+                "model", "qwen-vl-ocr-2025-11-20",
                 "messages", List.of(
                         Map.of(
                                 "role", "user",
-                                "content", content
+                                "content", List.of(
+                                        content,
+                                        Map.of(
+                                                "type", "text",
+                                                "text", """
+                                                        Extract all readable text from this document image.
+                                                        Preserve headings, paragraphs, lists, numbers and important values.
+                                                        Return only the extracted text.
+                                                        Do not summarize.
+                                                        """
+                                        )
+                                )
                         )
                 ),
-                "stream", false,
-                "enable_thinking", false
+                "stream", false
         );
 
         String raw = restClient.post()
@@ -151,10 +156,12 @@ public class AiResourceService {
                 .asText();
 
         if (result == null || result.isBlank()) {
-            throw new IllegalArgumentException("AI could not extract content from resource");
+            throw new IllegalArgumentException(
+                    "OCR returned empty content"
+            );
         }
 
-        return limit(result);
+        return result;
     }
 
     private String limit(String text) {
