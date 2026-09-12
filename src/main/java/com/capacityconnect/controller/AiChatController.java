@@ -33,6 +33,17 @@ public class AiChatController {
         return aiResourceService.extractText(file);
     }
 
+    @PostMapping(value = "/chat/resource", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public AiChatResponse chatWithResource(
+            @RequestParam("message") String message,
+            @RequestParam("file") MultipartFile file
+    ) throws Exception {
+        String resourceText = aiResourceService.extractText(file);
+
+        return aiChatService.chat(message, resourceText);
+    }
+
     @PostMapping("/chat")
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chat(
