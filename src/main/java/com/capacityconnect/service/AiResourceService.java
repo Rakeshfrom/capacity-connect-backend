@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -90,6 +91,29 @@ public class AiResourceService {
 
             return limit(result.toString());
         }
+    }
+
+    public String extractTextFromUrl(String url) throws Exception {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("Resource URL is required");
+        }
+
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            throw new IllegalArgumentException("Only HTTP/HTTPS URLs are supported");
+        }
+
+        String text = Jsoup.connect(url)
+                .userAgent("Mozilla/5.0")
+                .timeout(15000)
+                .get()
+                .body()
+                .text();
+
+        if (text.isBlank()) {
+            throw new IllegalArgumentException("Could not extract readable content from URL");
+        }
+
+        return limit(text);
     }
 
     private String extractImage(MultipartFile file) throws Exception {

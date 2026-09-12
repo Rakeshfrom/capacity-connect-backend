@@ -44,6 +44,16 @@ public class AiChatController {
         return aiChatService.chat(message, resourceText);
     }
 
+    @PostMapping("/chat/link")
+    @PreAuthorize("isAuthenticated()")
+    public AiChatResponse chatWithLink(
+            @RequestParam("message") String message,
+            @RequestParam("url") String url
+    ) throws Exception {
+        String resourceText = aiResourceService.extractTextFromUrl(url);
+        return aiChatService.chat(message, resourceText);
+    }
+
     @PostMapping("/chat")
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chat(

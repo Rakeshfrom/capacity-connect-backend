@@ -22,3 +22,6 @@ file:
   storage:
     location: uploads/trainer-resources
     max-size: 10485760
+
+trainee-storage:
+  location: uploads/trainee-resources
