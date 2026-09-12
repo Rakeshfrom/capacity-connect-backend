@@ -185,7 +185,9 @@ public class StudyResourceService {
             }
         }
 
-        return resource.getDescription() == null ? "" : resource.getDescription();
+        throw new IllegalArgumentException(
+                "Resource content is unavailable. Please re-upload this resource."
+        );
     }
 
     public Path getFilePath(
