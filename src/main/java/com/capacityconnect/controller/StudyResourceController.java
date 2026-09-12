@@ -32,6 +32,26 @@ public class StudyResourceController {
         return service.getMine(authentication);
     }
 
+    @GetMapping("/{id}")
+    public StudyResourceResponse getOne(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        StudyResource resource = service.getMineById(id, authentication);
+
+        return new StudyResourceResponse(
+                resource.getId(),
+                resource.getTitle(),
+                resource.getDescription(),
+                resource.getDepartment(),
+                resource.getType(),
+                resource.getUrl(),
+                resource.getOriginalFileName(),
+                resource.getContentType(),
+                resource.getCreatedAt()
+        );
+    }
+
     @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public StudyResourceResponse upload(
             @RequestParam String title,
