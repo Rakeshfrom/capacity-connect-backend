@@ -3,6 +3,8 @@ package com.capacityconnect.controller;
 import com.capacityconnect.dto.ProfileRequest;
 import com.capacityconnect.dto.LoginRequest;
 import com.capacityconnect.dto.LoginResponse;
+import com.capacityconnect.dto.RegisterRequest;
+import com.capacityconnect.service.KeycloakRegistrationService;
 import com.capacityconnect.service.KeycloakAuthService;
 import com.capacityconnect.dto.UserResponse;
 import com.capacityconnect.entity.User;
@@ -21,6 +23,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -30,14 +34,17 @@ public class AuthController {
     private final CurrentUserService currentUserService;
     private final FileStorageService fileStorageService;
     private final KeycloakAuthService keycloakAuthService;
+    private final KeycloakRegistrationService keycloakRegistrationService;
 
     public AuthController(
             CurrentUserService currentUserService,
             FileStorageService fileStorageService,
-            KeycloakAuthService keycloakAuthService) {
+            KeycloakAuthService keycloakAuthService,
+            KeycloakRegistrationService keycloakRegistrationService) {
         this.currentUserService = currentUserService;
         this.fileStorageService = fileStorageService;
         this.keycloakAuthService = keycloakAuthService;
+        this.keycloakRegistrationService = keycloakRegistrationService;
     }
 
     @PostMapping("/login")
@@ -46,6 +53,12 @@ public class AuthController {
                 request.username(),
                 request.password()
         );
+    }
+
+    @PostMapping("/register")
+    public Map<String, String> register(@Valid @RequestBody RegisterRequest request) {
+        keycloakRegistrationService.register(request);
+        return Map.of("message", "Account created successfully");
     }
 
     @GetMapping("/me")
