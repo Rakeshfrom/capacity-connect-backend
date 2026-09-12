@@ -2,6 +2,8 @@ package com.capacityconnect.controller;
 
 import com.capacityconnect.dto.AiChatRequest;
 import com.capacityconnect.dto.AiChatResponse;
+import com.capacityconnect.dto.AiCourseRequest;
+import com.capacityconnect.dto.AiAssessmentRequest;
 import com.capacityconnect.service.AiChatService;
 import com.capacityconnect.service.AiResourceService;
 import com.capacityconnect.service.StudyResourceService;
@@ -68,6 +70,32 @@ public class AiChatController {
     ) throws Exception {
         String resourceText = studyResourceService.getAiContent(resourceId, authentication);
         return aiChatService.chat(message, resourceText);
+    }
+
+    @PostMapping("/course/generate")
+    @PreAuthorize("hasRole('TRAINER')")
+    public String generateCourse(
+            @Valid @RequestBody AiCourseRequest request
+    ) {
+        return aiChatService.generateCourse(
+                request.getTopic(),
+                request.getContext(),
+                request.getLevel(),
+                request.getModuleCount()
+        );
+    }
+
+    @PostMapping("/assessment/generate")
+    @PreAuthorize("hasRole('TRAINER')")
+    public String generateAssessment(
+            @Valid @RequestBody AiAssessmentRequest request
+    ) {
+        return aiChatService.generateAssessmentQuestions(
+                request.getTopic(),
+                request.getContext(),
+                request.getQuestionCount(),
+                request.getDifficulty()
+        );
     }
 
     @PostMapping("/chat")

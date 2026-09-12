@@ -1,6 +1,9 @@
 package com.capacityconnect.controller;
 
 import com.capacityconnect.dto.ProfileRequest;
+import com.capacityconnect.dto.LoginRequest;
+import com.capacityconnect.dto.LoginResponse;
+import com.capacityconnect.service.KeycloakAuthService;
 import com.capacityconnect.dto.UserResponse;
 import com.capacityconnect.entity.User;
 import com.capacityconnect.service.CurrentUserService;
@@ -26,12 +29,23 @@ public class AuthController {
 
     private final CurrentUserService currentUserService;
     private final FileStorageService fileStorageService;
+    private final KeycloakAuthService keycloakAuthService;
 
     public AuthController(
             CurrentUserService currentUserService,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            KeycloakAuthService keycloakAuthService) {
         this.currentUserService = currentUserService;
         this.fileStorageService = fileStorageService;
+        this.keycloakAuthService = keycloakAuthService;
+    }
+
+    @PostMapping("/login")
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return keycloakAuthService.login(
+                request.username(),
+                request.password()
+        );
     }
 
     @GetMapping("/me")
