@@ -93,6 +93,48 @@ public class AiResourceService {
         }
     }
 
+    public String extractTextFromBytes(byte[] bytes, String fileName) throws Exception {
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("Resource file is empty");
+        }
+
+        String name = fileName == null ? "resource" : fileName.toLowerCase();
+
+        if (name.endsWith(".pdf")) {
+            try (var document = Loader.loadPDF(bytes)) {
+                String text = new PDFTextStripper().getText(document);
+
+                if (text != null && !text.isBlank()) {
+                    return limit(text);
+                }
+
+                PDFRenderer renderer = new PDFRenderer(document);
+                StringBuilder result = new StringBuilder();
+                int pages = Math.min(document.getNumberOfPages(), 20);
+
+                for (int i = 0; i < pages; i++) {
+                    BufferedImage image = renderer.renderImageWithDPI(i, 90);
+                    String pageText = extractImageWithOCR(image);
+
+                    if (pageText != null && !pageText.isBlank()) {
+                        result.append("\n\n--- Page ")
+                                .append(i + 1)
+                                .append(" ---\n\n")
+                                .append(pageText);
+                    }
+                }
+
+                if (result.isEmpty()) {
+                    throw new IllegalArgumentException("Could not extract readable content from PDF");
+                }
+
+                return limit(result.toString());
+            }
+        }
+
+        throw new IllegalArgumentException("Stored AI resource currently supports PDF files");
+    }
+
     public String extractTextFromUrl(String url) throws Exception {
         if (url == null || url.isBlank()) {
             throw new IllegalArgumentException("Resource URL is required");

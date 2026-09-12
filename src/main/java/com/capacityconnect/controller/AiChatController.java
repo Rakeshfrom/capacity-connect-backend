@@ -65,17 +65,8 @@ public class AiChatController {
             @RequestParam("message") String message,
             @RequestParam("resourceId") Long resourceId,
             org.springframework.security.core.Authentication authentication
-    ) {
-        StudyResource resource = studyResourceService.getMineById(resourceId, authentication);
-
-        String resourceText = resource.getContentText();
-
-        if (resourceText == null || resourceText.isBlank()) {
-            resourceText = resource.getDescription() == null
-                    ? ""
-                    : resource.getDescription();
-        }
-
+    ) throws Exception {
+        String resourceText = studyResourceService.getAiContent(resourceId, authentication);
         return aiChatService.chat(message, resourceText);
     }
 

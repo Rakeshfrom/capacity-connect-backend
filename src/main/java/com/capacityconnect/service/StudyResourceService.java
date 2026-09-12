@@ -140,6 +140,54 @@ public class StudyResourceService {
                         new ResourceNotFoundException("Study resource not found"));
     }
 
+    public String getAiContent(
+            Long id,
+            org.springframework.security.core.Authentication authentication) throws Exception {
+
+        StudyResource resource = getMineById(id, authentication);
+
+        if (resource.getContentText() != null && !resource.getContentText().isBlank()) {
+            return resource.getContentText();
+        }
+
+        if (resource.getType() == StudyResource.Type.LINK
+                && resource.getUrl() != null
+                && !resource.getUrl().isBlank()) {
+            String text = aiResourceService.extractTextFromUrl(resource.getUrl());
+            resource.setContentText(text);
+            repository.save(resource);
+            return text;
+        }
+
+        if (resource.getType() == StudyResource.Type.FILE
+                && resource.getStoredFileName() != null) {
+
+            Path current = Paths.get(storageLocation)
+                    .toAbsolutePath()
+                    .normalize()
+                    .resolve(resource.getStoredFileName());
+
+            Path legacy = Paths.get("uploads/trainer-resources")
+                    .toAbsolutePath()
+                    .normalize()
+                    .resolve(resource.getStoredFileName());
+
+            Path filePath = Files.exists(current) ? current : legacy;
+
+            if (Files.exists(filePath)) {
+                String text = aiResourceService.extractTextFromBytes(
+                        Files.readAllBytes(filePath),
+                        resource.getOriginalFileName()
+                );
+                resource.setContentText(text);
+                repository.save(resource);
+                return text;
+            }
+        }
+
+        return resource.getDescription() == null ? "" : resource.getDescription();
+    }
+
     public Path getFilePath(
             Long id,
             org.springframework.security.core.Authentication authentication) {
