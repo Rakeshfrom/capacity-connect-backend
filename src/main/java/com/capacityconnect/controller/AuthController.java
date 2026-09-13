@@ -61,6 +61,21 @@ public class AuthController {
         return Map.of("message", "Account created successfully");
     }
 
+
+    @PostMapping("/forgot-password")
+    public Map<String, String> forgotPassword(
+            @RequestBody Map<String, String> request) {
+
+        String email = request.getOrDefault("email", "").trim();
+
+        keycloakRegistrationService.sendPasswordReset(email);
+
+        return Map.of(
+                "message",
+                "If an account exists for this email, a password reset link has been sent."
+        );
+    }
+
     @GetMapping("/me")
     public UserResponse getCurrentUser(Authentication authentication) {
         return toResponse(currentUserService.getCurrentUser(authentication));

@@ -20,11 +20,17 @@ public class KeycloakRegistrationService {
     @Value("${keycloak.realm:capacity-connect}")
     private String realm;
 
+    @Value("${keycloak.client-id:capacity-connect-frontend}")
+    private String clientId;
+
     @Value("${keycloak.admin-client-id:capacity-connect-admin}")
     private String adminClientId;
 
     @Value("${keycloak.admin-client-secret:}")
     private String adminClientSecret;
+
+    @Value("${keycloak.frontend-url:https://capacity-connect-frontend-tawny.vercel.app}")
+    private String frontendUrl;
 
     private final RestClient restClient = RestClient.create();
 
@@ -71,6 +77,115 @@ public class KeycloakRegistrationService {
             System.err.println("Keycloak user creation failed: "
                     + e.getStatusCode() + " " + e.getResponseBodyAsString());
             throw new IllegalArgumentException("Unable to create account");
+        }
+    }
+
+    public void sendPasswordReset(String email) {
+        String normalizedEmail = email == null ? "" : email.trim();
+
+        if (normalizedEmail.isBlank()) {
+            return;
+        }
+
+        String token = getAdminToken();
+
+        try {
+            List<?> users = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .scheme(keycloakUrl.startsWith("https://") ? "https" : "http")
+                            .host(keycloakUrl
+                                    .replace("https://", "")
+                                    .replace("http://", "")
+                                    .replaceAll("/$", ""))
+                            .path("/admin/realms/" + realm + "/users")
+                            .queryParam("email", normalizedEmail)
+                            .build())
+                    .header("Authorization", "Bearer " + token)
+                    .retrieve()
+                    .body(List.class);
+
+            if (users == null) {
+                return;
+            }
+
+            String userId = null;
+
+            for (Object item : users) {
+                if (!(item instanceof Map<?, ?> user)) {
+                    continue;
+                }
+
+                Object id = user.get("id");
+                Object userEmail = user.get("email");
+
+                if (
+                        id != null &&
+                        userEmail != null &&
+                        normalizedEmail.equalsIgnoreCase(
+                                String.valueOf(userEmail)
+                        )
+                ) {
+                    userId = String.valueOf(id);
+                    break;
+                }
+            }
+
+            if (userId == null) {
+                return;
+            }
+
+            String redirectUri =
+                    frontendUrl.replaceAll("/$", "") + "/login";
+
+            final String finalUserId = userId;
+
+            restClient
+                    .post()
+                    .uri(uriBuilder -> uriBuilder
+                            .scheme(
+                                    keycloakUrl.startsWith("https://")
+                                            ? "https"
+                                            : "http"
+                            )
+                            .host(
+                                    keycloakUrl
+                                            .replace("https://", "")
+                                            .replace("http://", "")
+                                            .replaceAll("/$", "")
+                            )
+                            .path(
+                                    "/admin/realms/" +
+                                            realm +
+                                            "/users/" +
+                                            finalUserId +
+                                            "/execute-actions-email"
+                            )
+                            .queryParam(
+                                    "client_id",
+                                    clientId
+                            )
+                            .queryParam(
+                                    "redirect_uri",
+                                    redirectUri
+                            )
+                            .build())
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(List.of("UPDATE_PASSWORD"))
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientResponseException e) {
+            System.err.println(
+                    "Keycloak password reset request failed: "
+                            + e.getStatusCode()
+                            + " "
+                            + e.getResponseBodyAsString()
+            );
+
+            throw new IllegalStateException(
+                    "Unable to send password reset email"
+            );
         }
     }
 
