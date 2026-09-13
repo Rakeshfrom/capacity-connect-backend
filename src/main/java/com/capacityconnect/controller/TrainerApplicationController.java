@@ -3,6 +3,8 @@ package com.capacityconnect.controller;
 import com.capacityconnect.dto.TrainerApplicationRequest;
 import com.capacityconnect.dto.TrainerApplicationResponse;
 import com.capacityconnect.dto.TrainerApplicationReviewRequest;
+import com.capacityconnect.dto.TrainerAssessmentResponse;
+import com.capacityconnect.dto.TrainerAssessmentSubmissionRequest;
 import com.capacityconnect.service.TrainerApplicationService;
 import com.capacityconnect.service.FileStorageService;
 import jakarta.validation.Valid;
@@ -44,6 +46,16 @@ public class TrainerApplicationController {
             org.springframework.web.multipart.MultipartFile supportingDocument) {
 
         return service.submit(authentication, request, supportingDocument);
+    }
+
+    @GetMapping("/me/assessment")
+    public TrainerAssessmentResponse getMyAssessment(Authentication authentication) {
+        return service.getMyAssessment(authentication);
+    }
+
+    @PostMapping("/me/assessment")
+    public TrainerAssessmentResponse submitMyAssessment(Authentication authentication, @RequestBody TrainerAssessmentSubmissionRequest request) {
+        return service.submitMyAssessment(authentication, request);
     }
 
     @GetMapping("/me")

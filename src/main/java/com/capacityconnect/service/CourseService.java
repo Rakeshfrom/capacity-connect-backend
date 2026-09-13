@@ -6,6 +6,7 @@ import com.capacityconnect.entity.Course;
 import com.capacityconnect.exception.DuplicateResourceException;
 import com.capacityconnect.exception.ResourceNotFoundException;
 import com.capacityconnect.repository.CourseRepository;
+import com.capacityconnect.repository.TrainerApplicationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,14 +17,17 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final AuditLogService auditLogService;
     private final CurrentUserService currentUserService;
+    private final TrainerApplicationRepository trainerApplicationRepository;
 
     public CourseService(
             CourseRepository courseRepository,
             AuditLogService auditLogService,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            TrainerApplicationRepository trainerApplicationRepository) {
         this.courseRepository = courseRepository;
         this.auditLogService = auditLogService;
         this.currentUserService = currentUserService;
+        this.trainerApplicationRepository = trainerApplicationRepository;
     }
 
     public List<CourseResponse> getAllCourses() {
@@ -65,6 +69,8 @@ public class CourseService {
         if (currentUser.getRole() != com.capacityconnect.entity.User.Role.TRAINER) {
             throw new IllegalStateException("Only trainers can create courses");
         }
+
+        validatePublishAccess(currentUser, request.getStatus());
 
         Course course = Course.builder()
                 .title(request.getTitle())
@@ -123,6 +129,7 @@ public class CourseService {
         course.setDurationHours(request.getDurationHours());
         course.setDepartment(request.getDepartment());
         course.setLevel(request.getLevel());
+        validatePublishAccess(currentUser, request.getStatus());
         course.setStatus(request.getStatus());
         course.setDepartmentId(request.getDepartmentId());
 
@@ -169,6 +176,15 @@ public class CourseService {
                 target,
                 com.capacityconnect.entity.AuditLog.Status.COMPLETED
         );
+    }
+
+    private void validatePublishAccess(com.capacityconnect.entity.User currentUser, Course.Status status) {
+        if (currentUser.getRole() != com.capacityconnect.entity.User.Role.TRAINER || status != Course.Status.PUBLISHED) return;
+        var application = trainerApplicationRepository.findByUserId(currentUser.getId()).orElse(null);
+        if (application == null
+                || application.getStatus() != com.capacityconnect.entity.TrainerApplication.Status.APPROVED) {
+            throw new IllegalStateException("Trainer verification is required before publishing a course");
+        }
     }
 
     private Course findCourse(Long id) {

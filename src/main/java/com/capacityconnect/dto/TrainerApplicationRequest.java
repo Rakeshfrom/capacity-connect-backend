@@ -3,10 +3,10 @@ package com.capacityconnect.dto;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Getter @Setter
 public class TrainerApplicationRequest {
-
+    private String qualification;
+    private Integer experienceYears;
     private String reason;
     private String supportingDocumentUrl;
 }
