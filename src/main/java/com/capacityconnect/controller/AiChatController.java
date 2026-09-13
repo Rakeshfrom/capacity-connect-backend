@@ -44,21 +44,23 @@ public class AiChatController {
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chatWithResource(
             @RequestParam("message") String message,
-            @RequestParam("file") MultipartFile file
+            @RequestParam("file") MultipartFile file,
+            org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = aiResourceService.extractText(file);
 
-        return aiChatService.chat(message, resourceText);
+        return aiChatService.chat(message, resourceText, roleOf(authentication));
     }
 
     @PostMapping("/chat/link")
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chatWithLink(
             @RequestParam("message") String message,
-            @RequestParam("url") String url
+            @RequestParam("url") String url,
+            org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = aiResourceService.extractTextFromUrl(url);
-        return aiChatService.chat(message, resourceText);
+        return aiChatService.chat(message, resourceText, roleOf(authentication));
     }
 
     @PostMapping(value = "/chat/resource-id", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -69,7 +71,7 @@ public class AiChatController {
             org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = studyResourceService.getAiContent(resourceId, authentication);
-        return aiChatService.chat(message, resourceText);
+        return aiChatService.chat(message, resourceText, roleOf(authentication));
     }
 
     @PostMapping("/course/generate")
@@ -101,11 +103,21 @@ public class AiChatController {
     @PostMapping("/chat")
     @PreAuthorize("isAuthenticated()")
     public AiChatResponse chat(
-            @Valid @RequestBody AiChatRequest request
+            @Valid @RequestBody AiChatRequest request,
+            org.springframework.security.core.Authentication authentication
     ) {
         return aiChatService.chat(
                 request.message(),
-                request.resourceText() == null ? "" : request.resourceText()
+                request.resourceText() == null ? "" : request.resourceText(),
+                roleOf(authentication)
         );
+    }
+
+    private String roleOf(org.springframework.security.core.Authentication authentication) {
+        if (authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_TRAINER".equals(a.getAuthority()))) {
+            return "TRAINER";
+        }
+        return "TRAINEE";
     }
 }

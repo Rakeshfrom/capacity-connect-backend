@@ -215,21 +215,42 @@ public class AiChatService {
     }
 
     public AiChatResponse chat(String message) {
-        return chat(message, "");
+        return chat(message, "", "TRAINEE");
     }
 
     public AiChatResponse chat(String message, String resourceText) {
+        return chat(message, resourceText, "TRAINEE");
+    }
+
+    public AiChatResponse chat(String message, String resourceText, String userRole) {
         String context = resourceText == null || resourceText.isBlank()
                 ? ""
                 : "\n\nRESOURCE CONTENT:\n" + resourceText.substring(0, Math.min(resourceText.length(), 30000));
 
-        String prompt = """
-                You are Capacity AI, an educational LMS assistant.
+        String role = "TRAINER".equalsIgnoreCase(userRole) ? "trainer" : "trainee";
 
-                Answer the user's question clearly and accurately.
+        String roleGuidance = role.equals("trainer")
+                ? """
+                  Focus on course design, lesson planning, assessment creation,
+                  trainee performance, learner engagement, feedback and training delivery.
+                  """
+                : """
+                  Focus on course concepts, explanations, revision, practice questions,
+                  study planning, progress and the learner's next best study action.
+                  """;
+
+        String prompt = """
+                You are Capacity AI inside the CAPACITY CONNECT LMS.
+
+                Current user role: %s.
+
+                Answer the user's question clearly, accurately and practically.
+
+                %s
 
                 After the answer, generate exactly 4 short, natural follow-up questions
-                that are directly related to the user's current question.
+                that this same role would genuinely ask next. The questions must be
+                specific to the user's role and directly related to the current topic.
 
                 Return ONLY valid JSON in this exact structure:
                 {
@@ -242,11 +263,14 @@ public class AiChatService {
                   ]
                 }
 
+                Do not generate generic questions when a role-specific question is possible.
+
                 If resource content is provided, use it as the primary source for
                 answering questions about that resource.
 
                 User question:
-                """ + message + context;
+                %s
+                """.formatted(role, roleGuidance, message + context);
 
         try {
             Map<String, Object> body = Map.of(
