@@ -5,6 +5,7 @@ import com.capacityconnect.dto.LoginRequest;
 import com.capacityconnect.dto.LoginResponse;
 import com.capacityconnect.dto.RegisterRequest;
 import com.capacityconnect.service.KeycloakRegistrationService;
+import com.capacityconnect.service.PasswordResetService;
 import com.capacityconnect.service.KeycloakAuthService;
 import com.capacityconnect.dto.UserResponse;
 import com.capacityconnect.entity.User;
@@ -35,16 +36,19 @@ public class AuthController {
     private final FileStorageService fileStorageService;
     private final KeycloakAuthService keycloakAuthService;
     private final KeycloakRegistrationService keycloakRegistrationService;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
             CurrentUserService currentUserService,
             FileStorageService fileStorageService,
             KeycloakAuthService keycloakAuthService,
-            KeycloakRegistrationService keycloakRegistrationService) {
+            KeycloakRegistrationService keycloakRegistrationService,
+            PasswordResetService passwordResetService) {
         this.currentUserService = currentUserService;
         this.fileStorageService = fileStorageService;
         this.keycloakAuthService = keycloakAuthService;
         this.keycloakRegistrationService = keycloakRegistrationService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/login")
@@ -68,12 +72,21 @@ public class AuthController {
 
         String email = request.getOrDefault("email", "").trim();
 
-        keycloakRegistrationService.sendPasswordReset(email);
+        passwordResetService.sendPasswordReset(email);
 
         return Map.of(
                 "message",
                 "If an account exists for this email, a password reset link has been sent."
         );
+    }
+
+    @PostMapping("/reset-password")
+    public Map<String, String> resetPassword(
+            @Valid @RequestBody com.capacityconnect.dto.PasswordResetRequest request) {
+
+        passwordResetService.resetPassword(request);
+
+        return Map.of("message", "Password reset successfully");
     }
 
     @GetMapping("/me")
