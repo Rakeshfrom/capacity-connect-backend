@@ -223,11 +223,18 @@ public class AiChatService {
     }
 
     public AiChatResponse chat(String message, String resourceText, String userRole) {
+        return chat(message, resourceText, userRole, "");
+    }
+
+    public AiChatResponse chat(String message, String resourceText, String userRole, String activityContext) {
         String context = resourceText == null || resourceText.isBlank()
                 ? ""
                 : "\n\nRESOURCE CONTENT:\n" + resourceText.substring(0, Math.min(resourceText.length(), 30000));
 
         String role = "TRAINER".equalsIgnoreCase(userRole) ? "trainer" : "trainee";
+        String activity = activityContext == null || activityContext.isBlank()
+                ? "No recent LMS activity is available."
+                : activityContext.substring(0, Math.min(activityContext.length(), 20000));
 
         String roleGuidance = role.equals("trainer")
                 ? """
@@ -247,6 +254,14 @@ public class AiChatService {
                 Answer the user's question clearly, accurately and practically.
 
                 %s
+
+                RECENT LMS ACTIVITY CONTEXT:
+                %s
+
+                Use this activity context to personalise the answer and the 4 follow-up
+                questions. Use only facts present in the activity context. Never invent
+                course names, trainee names, scores, progress, notifications, or actions.
+                Prioritise the user's latest learning/training activity and next useful action.
 
                 After the answer, generate exactly 4 short, natural follow-up questions
                 that this same role would genuinely ask next. The questions must be
@@ -270,7 +285,7 @@ public class AiChatService {
 
                 User question:
                 %s
-                """.formatted(role, roleGuidance, message + context);
+                """.formatted(role, roleGuidance, activity, message + context);
 
         try {
             Map<String, Object> body = Map.of(

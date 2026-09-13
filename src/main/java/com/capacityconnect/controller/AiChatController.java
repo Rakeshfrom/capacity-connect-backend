@@ -45,11 +45,12 @@ public class AiChatController {
     public AiChatResponse chatWithResource(
             @RequestParam("message") String message,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "activityContext", required = false) String activityContext,
             org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = aiResourceService.extractText(file);
 
-        return aiChatService.chat(message, resourceText, roleOf(authentication));
+        return aiChatService.chat(message, resourceText, roleOf(authentication), activityContext);
     }
 
     @PostMapping("/chat/link")
@@ -57,10 +58,11 @@ public class AiChatController {
     public AiChatResponse chatWithLink(
             @RequestParam("message") String message,
             @RequestParam("url") String url,
+            @RequestParam(value = "activityContext", required = false) String activityContext,
             org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = aiResourceService.extractTextFromUrl(url);
-        return aiChatService.chat(message, resourceText, roleOf(authentication));
+        return aiChatService.chat(message, resourceText, roleOf(authentication), activityContext);
     }
 
     @PostMapping(value = "/chat/resource-id", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -68,10 +70,11 @@ public class AiChatController {
     public AiChatResponse chatWithStoredResource(
             @RequestParam("message") String message,
             @RequestParam("resourceId") Long resourceId,
+            @RequestParam(value = "activityContext", required = false) String activityContext,
             org.springframework.security.core.Authentication authentication
     ) throws Exception {
         String resourceText = studyResourceService.getAiContent(resourceId, authentication);
-        return aiChatService.chat(message, resourceText, roleOf(authentication));
+        return aiChatService.chat(message, resourceText, roleOf(authentication), activityContext);
     }
 
     @PostMapping("/course/generate")
@@ -109,7 +112,8 @@ public class AiChatController {
         return aiChatService.chat(
                 request.message(),
                 request.resourceText() == null ? "" : request.resourceText(),
-                roleOf(authentication)
+                roleOf(authentication),
+                request.activityContext()
         );
     }
 
