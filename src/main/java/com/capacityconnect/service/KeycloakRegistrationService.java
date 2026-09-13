@@ -140,7 +140,7 @@ public class KeycloakRegistrationService {
             final String finalUserId = userId;
 
             restClient
-                    .post()
+                    .put()
                     .uri(uriBuilder -> uriBuilder
                             .scheme(
                                     keycloakUrl.startsWith("https://")
