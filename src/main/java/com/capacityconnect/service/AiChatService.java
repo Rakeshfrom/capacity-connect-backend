@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,12 @@ public class AiChatService {
     private String model;
 
     public AiChatService() {
-        this.restClient = RestClient.create();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(8000);
+        this.restClient = RestClient.builder()
+                .requestFactory(factory)
+                .build();
     }
 
     public String generateAssessmentQuestions(
@@ -248,6 +254,11 @@ public class AiChatService {
                 %s
                 """.formatted(message == null ? "" : message.trim());
 
+        AiChatResponse fastResponse = fastPublicResponse(message);
+        if (fastResponse != null) {
+            return fastResponse;
+        }
+
         try {
             Map<String, Object> body = Map.of(
                     "model", model,
@@ -421,4 +432,84 @@ public class AiChatService {
             throw new RuntimeException("QwenCloud AI request failed", e);
         }
     }
+    private AiChatResponse fastPublicResponse(String message) {
+        String q = message == null ? "" : message.trim().toLowerCase();
+
+        if (q.isBlank()) {
+            return new AiChatResponse(
+                    "I can help you understand CAPACITY CONNECT, its roles, learning workflow and platform features.",
+                    List.of(
+                            "What is CAPACITY CONNECT?",
+                            "What can trainees do?",
+                            "How do trainers use the platform?",
+                            "How does the AI assistant help?"
+                    )
+            );
+        }
+
+        if (q.contains("what is capacity connect") || q.contains("what is capacity") ||
+                q.contains("about capacity connect")) {
+            return new AiChatResponse(
+                    "CAPACITY CONNECT is a centralized digital capacity-building and learning management platform for the Ministry of Earth Sciences and India Meteorological Department. It brings training programmes, learning resources, assessments, certification, analytics and professional development into one role-based platform for trainees, trainers and administrators.",
+                    List.of(
+                            "What can trainees do on CAPACITY CONNECT?",
+                            "What can trainers manage?",
+                            "What does the administrator handle?",
+                            "How does AI support the platform?"
+                    )
+            );
+        }
+
+        if (q.contains("trainee") && (q.contains("what") || q.contains("do") || q.contains("role"))) {
+            return new AiChatResponse(
+                    "Trainees can discover learning programmes, access modules and digital resources, complete assessments, track learning progress, receive feedback and earn eligible certificates.",
+                    List.of(
+                            "How do trainees track progress?",
+                            "What resources can trainees access?",
+                            "How do assessments work?",
+                            "How are certificates earned?"
+                    )
+            );
+        }
+
+        if (q.contains("trainer") && (q.contains("what") || q.contains("do") || q.contains("role"))) {
+            return new AiChatResponse(
+                    "Trainers can create and manage courses, modules, learning resources, assessments and questionnaires, while also monitoring trainee participation and performance.",
+                    List.of(
+                            "How does a trainer create a course?",
+                            "How can trainers use AI?",
+                            "How are trainee assessments managed?",
+                            "What trainer analytics are available?"
+                    )
+            );
+        }
+
+        if ((q.contains("admin") || q.contains("administrator")) &&
+                (q.contains("what") || q.contains("do") || q.contains("role"))) {
+            return new AiChatResponse(
+                    "Administrators manage users, trainer applications, courses, assessments, certifications, analytics, competency mapping, announcements, achievements and platform governance.",
+                    List.of(
+                            "How are trainer applications reviewed?",
+                            "What platform analytics can admins see?",
+                            "How are courses governed?",
+                            "What does the audit system cover?"
+                    )
+            );
+        }
+
+        if (q.contains("ai assistant") || q.contains("how does ai") || q.contains("what can ai")) {
+            return new AiChatResponse(
+                    "Capacity AI provides role-aware assistance across the platform. It can help visitors understand CAPACITY CONNECT, while authenticated trainees and trainers can use contextual AI support for learning, course work, assessments and training activities.",
+                    List.of(
+                            "How can trainees use Capacity AI?",
+                            "How can trainers use AI for courses?",
+                            "Can AI generate assessments?",
+                            "Can AI help with learning resources?"
+                    )
+            );
+        }
+
+        return null;
+    }
+
 }
