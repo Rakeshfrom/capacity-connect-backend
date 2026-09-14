@@ -8,6 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +21,7 @@ import java.util.Map;
 public class AiChatService {
 
     private final RestClient restClient;
+    private final RestClient publicStreamClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${DASHSCOPE_API_KEY:}")
@@ -32,6 +39,13 @@ public class AiChatService {
         factory.setReadTimeout(8000);
         this.restClient = RestClient.builder()
                 .requestFactory(factory)
+                .build();
+
+        SimpleClientHttpRequestFactory streamFactory = new SimpleClientHttpRequestFactory();
+        streamFactory.setConnectTimeout(5000);
+        streamFactory.setReadTimeout(30000);
+        this.publicStreamClient = RestClient.builder()
+                .requestFactory(streamFactory)
                 .build();
     }
 
@@ -307,6 +321,135 @@ public class AiChatService {
         } catch (Exception e) {
             throw new RuntimeException("QwenCloud public AI request failed", e);
         }
+    }
+
+    public void streamPublicChat(String message, OutputStream outputStream) throws IOException {
+        AiChatResponse fastResponse = fastPublicResponse(message);
+        if (fastResponse != null) {
+            writeSse(outputStream, Map.of(
+                    "type", "delta",
+                    "text", fastResponse.answer()
+            ));
+            writeSse(outputStream, Map.of(
+                    "type", "done",
+                    "quickQueries", fastResponse.quickQueries()
+            ));
+            return;
+        }
+
+        String prompt = """
+                You are Capacity AI, the public website assistant for CAPACITY CONNECT,
+                a digital capacity building and learning management platform for the
+                Ministry of Earth Sciences / India Meteorological Department.
+
+                Use only these verified website facts:
+                - CAPACITY CONNECT is one centralized digital platform for capacity building and learning management.
+                - It serves three roles: trainee, trainer and administrator.
+                - Trainees can discover programmes, access modules and resources, complete assessments,
+                  track progress, receive feedback and earn eligible certificates.
+                - Trainers can create and manage courses, modules, resources, assessments,
+                  questionnaires and trainee activities.
+                - Administrators manage users, trainer applications, courses, assessments,
+                  certifications, analytics, competency mapping, announcements, achievements and governance.
+                - The platform includes AI-assisted course/content and assessment workflows.
+
+                Answer the visitor concisely and directly in plain text.
+                Do not use markdown tables, JSON, or headings.
+                Do not invent features.
+
+                Visitor question:
+                %s
+                """.formatted(message == null ? "" : message.trim());
+
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "messages", List.of(
+                        Map.of(
+                                "role", "system",
+                                "content", "You are the fast public-facing Capacity AI website assistant."
+                        ),
+                        Map.of(
+                                "role", "user",
+                                "content", prompt
+                        )
+                ),
+                "stream", true,
+                "temperature", 0.1,
+                "max_tokens", 260,
+                "extra_body", Map.of("enable_thinking", false)
+        );
+
+        try {
+            publicStreamClient.post()
+                    .uri(baseUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .exchange((request, response) -> {
+                        try (BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (!line.startsWith("data:")) continue;
+                                String payload = line.substring(5).trim();
+                                if (payload.isEmpty() || "[DONE]".equals(payload)) continue;
+
+                                JsonNode root = objectMapper.readTree(payload);
+                                JsonNode delta = root.path("choices").path(0).path("delta").path("content");
+                                if (!delta.isMissingNode() && !delta.isNull()) {
+                                    String text = delta.asText();
+                                    if (!text.isEmpty()) {
+                                        writeSse(outputStream, Map.of("type", "delta", "text", text));
+                                    }
+                                }
+                            }
+                        }
+                        return null;
+                    });
+
+            writeSse(outputStream, Map.of(
+                    "type", "done",
+                    "quickQueries", publicQuickQueries(message)
+            ));
+        } catch (Exception e) {
+            writeSse(outputStream, Map.of(
+                    "type", "error",
+                    "message", "Capacity AI is temporarily unavailable. Please try again."
+            ));
+        }
+    }
+
+    private void writeSse(OutputStream outputStream, Map<String, Object> payload) throws IOException {
+        String json = objectMapper.writeValueAsString(payload);
+        outputStream.write(("data: " + json + "\n\n").getBytes(StandardCharsets.UTF_8));
+        outputStream.flush();
+    }
+
+    private List<String> publicQuickQueries(String message) {
+        String q = message == null ? "" : message.toLowerCase();
+        List<String> queries = new ArrayList<>();
+        if (q.contains("trainee") || q.contains("learner")) {
+            queries.add("How do trainees track learning progress?");
+            queries.add("What resources can trainees access?");
+            queries.add("How do trainee assessments work?");
+            queries.add("How are certificates earned?");
+        } else if (q.contains("trainer") || q.contains("course")) {
+            queries.add("How does a trainer create a course?");
+            queries.add("How can trainers use AI?");
+            queries.add("How are assessments managed?");
+            queries.add("What can trainers monitor?");
+        } else if (q.contains("admin") || q.contains("administrator")) {
+            queries.add("What does the administrator manage?");
+            queries.add("How are trainer applications handled?");
+            queries.add("What analytics are available?");
+            queries.add("What governance functions are supported?");
+        } else {
+            queries.add("What is CAPACITY CONNECT?");
+            queries.add("What can trainees do?");
+            queries.add("What can trainers manage?");
+            queries.add("What does the administrator handle?");
+        }
+        return queries;
     }
 
     public AiChatResponse chat(String message) {

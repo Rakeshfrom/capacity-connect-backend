@@ -9,6 +9,9 @@ import com.capacityconnect.service.AiResourceService;
 import com.capacityconnect.service.StudyResourceService;
 import com.capacityconnect.entity.StudyResource;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -82,6 +85,18 @@ public class AiChatController {
             @Valid @RequestBody AiChatRequest request
     ) {
         return aiChatService.publicChat(request.message());
+    }
+
+    @PostMapping(value = "/public-chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<StreamingResponseBody> publicChatStream(
+            @Valid @RequestBody AiChatRequest request
+    ) {
+        StreamingResponseBody body = outputStream -> aiChatService.streamPublicChat(request.message(), outputStream);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .header("X-Accel-Buffering", "no")
+                .body(body);
     }
 
     @PostMapping("/course/generate")

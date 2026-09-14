@@ -42,6 +42,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/api/certificates/verify/**").permitAll()
                 .requestMatchers("/api/ai/public-chat").permitAll()
+                .requestMatchers("/api/ai/public-chat/stream").permitAll()
 
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/trainer/**").hasAnyRole("TRAINER", "ADMIN")
