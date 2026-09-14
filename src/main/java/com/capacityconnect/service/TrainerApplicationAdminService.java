@@ -20,13 +20,15 @@ public class TrainerApplicationAdminService {
     private final TrainerProfileRepository trainerProfileRepository;
     private final KeycloakRoleService keycloakRoleService;
     private final AiChatService aiChatService;
+    private final TrainerCvTextExtractionService trainerCvTextExtractionService;
 
     public TrainerApplicationAdminService(TrainerApplicationRepository applicationRepository,
                                           UserRepository userRepository,
                                           TrainerProfileRepository trainerProfileRepository,
                                           KeycloakRoleService keycloakRoleService,
-                                          AiChatService aiChatService) {
-        this.applicationRepository=applicationRepository;this.userRepository=userRepository;this.trainerProfileRepository=trainerProfileRepository;this.keycloakRoleService=keycloakRoleService;this.aiChatService=aiChatService;
+                                          AiChatService aiChatService,
+                                          TrainerCvTextExtractionService trainerCvTextExtractionService) {
+        this.applicationRepository=applicationRepository;this.userRepository=userRepository;this.trainerProfileRepository=trainerProfileRepository;this.keycloakRoleService=keycloakRoleService;this.aiChatService=aiChatService;this.trainerCvTextExtractionService=trainerCvTextExtractionService;
     }
 
     public List<TrainerApplicationResponse> getPendingApplications(){return applicationRepository.findAll().stream().filter(a->a.getStatus()!=TrainerApplication.Status.APPROVED&&a.getStatus()!=TrainerApplication.Status.REJECTED).map(this::toResponse).toList();}
@@ -34,8 +36,40 @@ public class TrainerApplicationAdminService {
     public TrainerApplicationResponse assignAssessment(Long id,String difficulty,int count){
         TrainerApplication app=find(id); if(app.getStatus()!=TrainerApplication.Status.PENDING) throw new IllegalStateException("Assessment can only be assigned to pending applications");
         User u=userRepository.findById(app.getUserId()).orElseThrow(()->new ResourceNotFoundException("User not found: "+app.getUserId()));
-        String ctx="Candidate trainer\nCurrent role: "+u.getRole()+"\nDepartment: "+v(u.getDepartment())+"\nQualification: "+v(u.getQualifications())+"\nExperience years: "+(u.getExperienceYears()==null?"Not provided":u.getExperienceYears())+"\nSkills: "+v(u.getSkills())+"\nInterests: "+v(u.getInterests())+"\nApplication reason: "+v(app.getReason())+"\nAssess knowledge, instructional ability, judgement, communication and trainer readiness.";
-        String raw=aiChatService.generateAssessmentQuestions("Trainer role competency assessment",ctx,count,difficulty==null?"MEDIUM":difficulty);
+        String cvText = trainerCvTextExtractionService.extract(app.getSupportingDocumentKey());
+        String ctx = """
+                Candidate trainer profile:
+                Department: %s
+                Highest qualification: %s
+                Relevant experience (years): %s
+                Skills: %s
+                Interests: %s
+                Application reason: %s
+
+                Extracted CV content:
+                %s
+
+                Assessment objective:
+                Evaluate this specific candidate for trainer readiness using the candidate profile and CV as the primary evidence.
+                Questions must be relevant to the candidate's subject/domain, qualification, experience, skills and responsibilities.
+                Cover subject knowledge, applied judgement, instructional ability, communication, practical problem solving and trainer readiness.
+                Avoid generic questions that could apply equally to any unrelated applicant.
+                Do not ask about facts that are not supported by the supplied profile or CV.
+                """.formatted(
+                v(u.getDepartment()),
+                v(u.getQualifications()),
+                u.getExperienceYears()==null?"Not provided":u.getExperienceYears(),
+                v(u.getSkills()),
+                v(u.getInterests()),
+                v(app.getReason()),
+                cvText
+        );
+        String raw=aiChatService.generateAssessmentQuestions(
+                "Candidate-specific trainer competency assessment",
+                ctx,
+                count,
+                difficulty==null?"MEDIUM":difficulty
+        );
         try{
             var mapper=new com.fasterxml.jackson.databind.ObjectMapper(); var parsed=mapper.readTree(raw); var qs=parsed.path("questions"); if(!qs.isArray()||qs.size()<5) throw new IllegalStateException("AI did not generate enough assessment questions");
             for(int i=0;i<qs.size();i++)((com.fasterxml.jackson.databind.node.ObjectNode)qs.get(i)).put("id",String.valueOf(i+1));
