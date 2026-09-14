@@ -20,63 +20,113 @@ public class TrainerApplicationAdminService {
     private final TrainerProfileRepository trainerProfileRepository;
     private final KeycloakRoleService keycloakRoleService;
     private final AiChatService aiChatService;
-    private final TrainerCvTextExtractionService trainerCvTextExtractionService;
 
     public TrainerApplicationAdminService(TrainerApplicationRepository applicationRepository,
                                           UserRepository userRepository,
                                           TrainerProfileRepository trainerProfileRepository,
                                           KeycloakRoleService keycloakRoleService,
-                                          AiChatService aiChatService,
-                                          TrainerCvTextExtractionService trainerCvTextExtractionService) {
-        this.applicationRepository=applicationRepository;this.userRepository=userRepository;this.trainerProfileRepository=trainerProfileRepository;this.keycloakRoleService=keycloakRoleService;this.aiChatService=aiChatService;this.trainerCvTextExtractionService=trainerCvTextExtractionService;
+                                          AiChatService aiChatService) {
+        this.applicationRepository=applicationRepository;this.userRepository=userRepository;this.trainerProfileRepository=trainerProfileRepository;this.keycloakRoleService=keycloakRoleService;this.aiChatService=aiChatService;
     }
 
     public List<TrainerApplicationResponse> getPendingApplications(){return applicationRepository.findAll().stream().filter(a->a.getStatus()!=TrainerApplication.Status.APPROVED&&a.getStatus()!=TrainerApplication.Status.REJECTED).map(this::toResponse).toList();}
 
     public TrainerApplicationResponse assignAssessment(Long id,String difficulty,int count){
-        TrainerApplication app=find(id); if(app.getStatus()!=TrainerApplication.Status.PENDING) throw new IllegalStateException("Assessment can only be assigned to pending applications");
-        User u=userRepository.findById(app.getUserId()).orElseThrow(()->new ResourceNotFoundException("User not found: "+app.getUserId()));
-        String cvText = trainerCvTextExtractionService.extract(app.getSupportingDocumentKey());
+        TrainerApplication app=find(id);
+        if(app.getStatus()!=TrainerApplication.Status.PENDING)
+            throw new IllegalStateException("Assessment can only be assigned to pending applications");
+
+        if(count < 5 || count > 20)
+            throw new IllegalArgumentException("Question count must be between 5 and 20");
+
+        User u=userRepository.findById(app.getUserId())
+                .orElseThrow(()->new ResourceNotFoundException("User not found: "+app.getUserId()));
+
+        String department = v(u.getDepartment());
+        String qualification = v(u.getQualifications());
+        String experience = u.getExperienceYears()==null
+                ? "Not provided"
+                : String.valueOf(u.getExperienceYears());
+        String skills = v(u.getSkills());
+        String interests = v(u.getInterests());
+        String reason = v(app.getReason());
+
         String ctx = """
-                Candidate trainer profile:
-                Department: %s
+                Candidate trainer information:
+                Department / domain: %s
                 Highest qualification: %s
                 Relevant experience (years): %s
                 Skills: %s
                 Interests: %s
                 Application reason: %s
 
-                Extracted CV content:
-                %s
-
                 Assessment objective:
-                Evaluate this specific candidate for trainer readiness using the candidate profile and CV as the primary evidence.
-                Questions must be relevant to the candidate's subject/domain, qualification, experience, skills and responsibilities.
-                Cover subject knowledge, applied judgement, instructional ability, communication, practical problem solving and trainer readiness.
-                Avoid generic questions that could apply equally to any unrelated applicant.
-                Do not ask about facts that are not supported by the supplied profile or CV.
+                Create an assessment for this specific trainer applicant using only
+                the information supplied above.
+
+                The assessment must:
+                - be relevant to the candidate's department/domain;
+                - evaluate subject understanding related to that domain;
+                - evaluate teaching and instructional ability;
+                - evaluate communication and learner-facing judgement;
+                - include practical/scenario-based trainer situations;
+                - evaluate trainer readiness and professional judgement;
+                - use the application reason where relevant.
+
+                Do not invent qualifications, experience, skills, interests or CV facts.
+                Do not depend on unavailable information.
+                Questions must feel specific to this candidate's supplied profile.
                 """.formatted(
-                v(u.getDepartment()),
-                v(u.getQualifications()),
-                u.getExperienceYears()==null?"Not provided":u.getExperienceYears(),
-                v(u.getSkills()),
-                v(u.getInterests()),
-                v(app.getReason()),
-                cvText
+                department,
+                qualification,
+                experience,
+                skills,
+                interests,
+                reason
         );
+
+        String topic = department.equals("Not provided")
+                ? "Trainer readiness and teaching competency"
+                : department + " trainer readiness and teaching competency";
+
         String raw=aiChatService.generateAssessmentQuestions(
-                "Candidate-specific trainer competency assessment",
+                topic,
                 ctx,
                 count,
-                difficulty==null?"MEDIUM":difficulty
+                difficulty==null ? "MEDIUM" : difficulty
         );
+
         try{
-            var mapper=new com.fasterxml.jackson.databind.ObjectMapper(); var parsed=mapper.readTree(raw); var qs=parsed.path("questions"); if(!qs.isArray()||qs.size()<5) throw new IllegalStateException("AI did not generate enough assessment questions");
-            for(int i=0;i<qs.size();i++)((com.fasterxml.jackson.databind.node.ObjectNode)qs.get(i)).put("id",String.valueOf(i+1));
-            app.setAssessmentJson(mapper.writeValueAsString(mapper.convertValue(qs,new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String,Object>>>(){})));
-            app.setAssessmentScore(null);app.setAssessmentPassed(false);app.setAssessmentAssignedAt(LocalDateTime.now());app.setAssessmentCompletedAt(null);app.setStatus(TrainerApplication.Status.ASSESSMENT_REQUIRED);
+            var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+            var parsed=mapper.readTree(raw);
+            var qs=parsed.path("questions");
+
+            if(!qs.isArray() || qs.size()<5)
+                throw new IllegalStateException("AI did not generate enough assessment questions");
+
+            for(int i=0;i<qs.size();i++)
+                ((com.fasterxml.jackson.databind.node.ObjectNode)qs.get(i))
+                        .put("id",String.valueOf(i+1));
+
+            app.setAssessmentJson(
+                    mapper.writeValueAsString(
+                            mapper.convertValue(
+                                    qs,
+                                    new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String,Object>>>(){}
+                            )
+                    )
+            );
+
+            app.setAssessmentScore(null);
+            app.setAssessmentPassed(false);
+            app.setAssessmentAssignedAt(LocalDateTime.now());
+            app.setAssessmentCompletedAt(null);
+            app.setStatus(TrainerApplication.Status.ASSESSMENT_REQUIRED);
+
             return toResponse(applicationRepository.save(app));
-        }catch(Exception e){throw new IllegalStateException("Unable to store AI trainer assessment",e);}
+        }catch(Exception e){
+            throw new IllegalStateException("Unable to store AI trainer assessment",e);
+        }
     }
 
     public TrainerApplicationResponse approve(Long id,String comment){
