@@ -21,6 +21,7 @@ import java.util.Map;
 public class AiChatService {
 
     private final RestClient restClient;
+    private final RestClient assessmentClient;
     private final RestClient publicStreamClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -39,6 +40,13 @@ public class AiChatService {
         factory.setReadTimeout(8000);
         this.restClient = RestClient.builder()
                 .requestFactory(factory)
+                .build();
+
+        SimpleClientHttpRequestFactory assessmentFactory = new SimpleClientHttpRequestFactory();
+        assessmentFactory.setConnectTimeout(5000);
+        assessmentFactory.setReadTimeout(30000);
+        this.assessmentClient = RestClient.builder()
+                .requestFactory(assessmentFactory)
                 .build();
 
         SimpleClientHttpRequestFactory streamFactory = new SimpleClientHttpRequestFactory();
@@ -118,7 +126,7 @@ public class AiChatService {
                     "extra_body", Map.of("enable_thinking", false)
             );
 
-            String raw = restClient.post()
+            String raw = assessmentClient.post()
                     .uri(baseUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
