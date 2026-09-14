@@ -214,6 +214,90 @@ public class AiChatService {
         }
     }
 
+    public AiChatResponse publicChat(String message) {
+        String prompt = """
+                You are Capacity AI, the public website assistant for CAPACITY CONNECT,
+                a digital capacity building and learning management platform for the
+                Ministry of Earth Sciences / India Meteorological Department.
+
+                Answer the visitor's question using only these verified website facts:
+                - CAPACITY CONNECT is a centralized digital learning environment.
+                - It serves three roles: trainee, trainer and administrator.
+                - Trainees can discover learning programmes, access modules/resources,
+                  complete assessments, track progress and earn certificates.
+                - Trainers can create and manage courses, resources, assessments,
+                  questionnaires and trainee activities.
+                - Administrators manage users, trainer applications, courses, assessments,
+                  certifications, analytics, competency mapping, announcements, achievements
+                  and audit/governance functions.
+                - The platform includes AI-assisted course/content and assessment workflows.
+                - The platform brings learning, resources, assessment, certification,
+                  analytics and professional development together.
+
+                Keep the answer concise (prefer 80-120 words). Do not invent site features.
+                Return ONLY valid JSON:
+                {
+                  "answer": "...",
+                  "quickQueries": ["...", "...", "...", "..."]
+                }
+
+                Generate exactly four short follow-up questions directly related to the
+                visitor's question and the website.
+
+                Visitor question:
+                %s
+                """.formatted(message == null ? "" : message.trim());
+
+        try {
+            Map<String, Object> body = Map.of(
+                    "model", model,
+                    "messages", List.of(
+                            Map.of(
+                                    "role", "system",
+                                    "content", "You are the fast public-facing Capacity AI website assistant."
+                            ),
+                            Map.of(
+                                    "role", "user",
+                                    "content", prompt
+                            )
+                    ),
+                    "stream", false,
+                    "temperature", 0.2,
+                    "max_tokens", 450,
+                    "extra_body", Map.of("enable_thinking", false)
+            );
+
+            String raw = restClient.post()
+                    .uri(baseUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode root = objectMapper.readTree(raw);
+            String content = root.path("choices")
+                    .path(0)
+                    .path("message")
+                    .path("content")
+                    .asText()
+                    .replace("```json", "")
+                    .replace("```", "")
+                    .trim();
+
+            JsonNode result = objectMapper.readTree(content);
+            String answer = result.path("answer").asText();
+            List<String> quickQueries = objectMapper.convertValue(
+                    result.path("quickQueries"),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
+            );
+
+            return new AiChatResponse(answer, quickQueries.stream().filter(q -> q != null && !q.isBlank()).limit(4).toList());
+        } catch (Exception e) {
+            throw new RuntimeException("QwenCloud public AI request failed", e);
+        }
+    }
+
     public AiChatResponse chat(String message) {
         return chat(message, "", "TRAINEE");
     }

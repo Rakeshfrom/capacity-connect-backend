@@ -77,6 +77,13 @@ public class AiChatController {
         return aiChatService.chat(message, resourceText, roleOf(authentication), activityContext);
     }
 
+    @PostMapping("/public-chat")
+    public AiChatResponse publicChat(
+            @Valid @RequestBody AiChatRequest request
+    ) {
+        return aiChatService.publicChat(request.message());
+    }
+
     @PostMapping("/course/generate")
     @PreAuthorize("hasRole('TRAINER')")
     public String generateCourse(
